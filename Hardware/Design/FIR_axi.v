@@ -67,10 +67,13 @@
 		output wire  S_AXI_RVALID,
 		// Read ready. This signal indicates that the master can
     		// accept the read data and response information.
-		input wire  S_AXI_RREADY
+		input wire  S_AXI_RREADY,
 
         // All slave registers
-		
+	   output wire [C_S_AXI_DATA_WIDTH-1 : 0] control_axi,
+	   input  wire [C_S_AXI_DATA_WIDTH-1 : 0] status_axi, 
+	   output wire [C_S_AXI_DATA_WIDTH-1 : 0] tap_count_axi,
+	   output wire [C_S_AXI_DATA_WIDTH-1 : 0] coeff_axi
 	);
 
 	// AXI4LITE signals
@@ -97,9 +100,16 @@
 	//------------------------------------------------
 	//-- Number of Slave Registers 6
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg0;
+	assign control_axi            = slv_reg0;
+	
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg1;
+
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg2;
+	assign tap_count_axi          = slv_reg2;
+
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg3;
+	assign coeff_axi              = slv_reg3;
+	
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg4;
 	reg [C_S_AXI_DATA_WIDTH-1:0]	slv_reg5;
 	wire	 slv_reg_rden;
@@ -215,7 +225,6 @@
 	  if ( S_AXI_ARESETN == 1'b0 )
 	    begin
 	      slv_reg0 <= 0;
-	      slv_reg1 <= 0;
 	      slv_reg2 <= 0;
 	      slv_reg3 <= 0;
 	      slv_reg4 <= 0;
@@ -231,13 +240,6 @@
 	                // Respective byte enables are asserted as per write strobes 
 	                // Slave register 0
 	                slv_reg0[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
-	              end  
-	          8'h4:
-	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
-	              if ( S_AXI_WSTRB[byte_index] == 1 ) begin
-	                // Respective byte enables are asserted as per write strobes 
-	                // Slave register 1
-	                slv_reg1[(byte_index*8) +: 8] <= S_AXI_WDATA[(byte_index*8) +: 8];
 	              end  
 	          8'h8:
 	            for ( byte_index = 0; byte_index <= (C_S_AXI_DATA_WIDTH/8)-1; byte_index = byte_index+1 )
@@ -411,5 +413,17 @@
 	    end
 	end    
 
+	// Read-only AXI MMIO registers
+	always @( posedge S_AXI_ACLK )
+	begin
+	  if ( S_AXI_ARESETN == 1'b0 )
+	    begin
+          slv_reg1 <= 0;
+	    end 
+	  else
+	    begin    
+          slv_reg1 <= status_axi;
+	    end
+	end    
 
 	endmodule

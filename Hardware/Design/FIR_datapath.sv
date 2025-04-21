@@ -41,7 +41,7 @@ always_ff @(posedge clk) begin
         coefficient_loading_complete <= 1'b0;
     end else if (coeff_data_valid) begin
         coeff_wr_ptr <= ((coeff_wr_ptr == tap_count - 1) || (coeff_wr_ptr == MAX_TAPS - 1)) ? coeff_wr_ptr : coeff_wr_ptr + 1;
-        coefficient_loading_complete <= ((coeff_wr_ptr == tap_count - 2) || (coeff_wr_ptr == MAX_TAPS - 2)) ? coeff_wr_ptr : coeff_wr_ptr + 1;
+        coefficient_loading_complete <= ((coeff_wr_ptr == tap_count - 2) || (coeff_wr_ptr == MAX_TAPS - 2));
     end
 end
 
