@@ -1,5 +1,3 @@
-import fir_pkg::*;
-
 module FIR_datapath #(
     parameter integer MAX_TAPS = 16
 ) (
@@ -7,7 +5,7 @@ module FIR_datapath #(
     input logic rstn,
 
     // From control unit
-    input logic unsigned [$clog2(MAX_TAPS) - 1 : 0] tap_count,
+    input logic unsigned [31 : 0] tap_count,
     input logic input_data_valid,
     input logic signed [31:0] input_data,
     input logic coeff_data_valid,
@@ -40,6 +38,7 @@ end
 always_ff @(posedge clk) begin
     if (~rstn) begin
         coeff_wr_ptr <= '{default: 0};
+        coefficient_loading_complete <= 1'b0;
     end else if (coeff_data_valid) begin
         coeff_wr_ptr <= ((coeff_wr_ptr == tap_count - 1) || (coeff_wr_ptr == MAX_TAPS - 1)) ? coeff_wr_ptr : coeff_wr_ptr + 1;
         coefficient_loading_complete <= ((coeff_wr_ptr == tap_count - 2) || (coeff_wr_ptr == MAX_TAPS - 2)) ? coeff_wr_ptr : coeff_wr_ptr + 1;

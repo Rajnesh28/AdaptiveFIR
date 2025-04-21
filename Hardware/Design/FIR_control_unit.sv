@@ -1,5 +1,3 @@
-import fir_pkg::*;
-
 module FIR_control_unit #(
     parameter integer MAX_TAPS = 16
 ) (
@@ -32,13 +30,26 @@ module FIR_control_unit #(
     input  logic        output_data_valid,
     input  logic [31:0] output_data
 );
-    // Address decode logic
-    logic tap_count_write_valid   = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == HW_TAP_COUNT_REG_BASEADDRESS));
-    logic coefficient_write_valid = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == HW_COEFF_DATA_REG_BASEADDRESS));
-    logic input_write_valid       = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == HW_INPUT_DATA_REG_BASEADDRESS));
-    assign x_data_valid           = input_write_valid;
+    // State machine
+    typedef enum logic [2:0] {
+        IDLE,
+        LOAD_COEFF,
+        WAIT_FOR_INPUT,
+        PROCESSING,
+        DONE
+    } state_t;
 
-    logic coeff_data_wren         = control_axi[1];
+    state_t curr_state, next_state;
+    
+    logic tap_count_write_valid;
+    logic coefficient_write_valid;
+    logic input_write_valid;
+    
+    logic x_data_valid;
+    assign x_data_valid            = input_write_valid;
+
+    logic coeff_data_wren;
+    assign coeff_data_wren = control_axi[1];
 
     assign status_axi = {29'd0, (curr_state == DONE), (curr_state == PROCESSING), (curr_state == IDLE)};
 
@@ -52,21 +63,19 @@ module FIR_control_unit #(
     assign compute      = control_axi[0];
     assign y_axi        = output_data;
 
-
+    always @(posedge clk) begin
+        if (~rstn) begin
+            tap_count_write_valid   <= 1'b0;
+            coefficient_write_valid <= 1'b0;
+            input_write_valid       <= 1'b0;
+        end else begin
+            tap_count_write_valid   = ((S_AXI_AWVALID & S_AXI_AWREADY) && (S_AXI_AWADDR == 32'h08));
+            coefficient_write_valid = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h0C));
+            input_write_valid       = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h10));
+        end
+   end
+    
     assign coeff_data_valid = coefficient_write_valid & coeff_data_wren;
-
-    // State machine
-    typedef enum logic [2:0] {
-        IDLE,
-        LOAD_COEFF,
-        WAIT_FOR_INPUT,
-        PROCESSING,
-        DONE,
-        ERROR
-    } state_t;
-
-    state_t curr_state, next_state;
-
     always_ff @(posedge clk) begin
         if (!rstn) begin
             curr_state <= IDLE;
@@ -76,8 +85,6 @@ module FIR_control_unit #(
     end
 
     always_comb begin
-        next_state = curr_state;
-        coeff_data_valid = 0;
 
         case (curr_state)
             IDLE:           next_state = (tap_count_write_valid) ? LOAD_COEFF : IDLE;
@@ -93,5 +100,6 @@ module FIR_control_unit #(
             default: next_state = IDLE;
         endcase
     end
+
 
 endmodule
