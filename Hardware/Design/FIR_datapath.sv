@@ -1,35 +1,31 @@
+import fir_pkg::*;
+
 module FIR_datapath #(
     parameter integer MAX_TAPS = 16
 ) (
     input logic clk,
     input logic rstn,
 
+    // From control unit
     input logic unsigned [$clog2(MAX_TAPS) - 1 : 0] tap_count,
-
     input logic input_data_valid,
-    input logic signed [15:0] input_data,
-
+    input logic signed [31:0] input_data,
     input logic coeff_data_valid,
-    input logic signed [15:0] coeff_data,
-
+    input logic signed [31:0] coeff_data,
     input logic compute,
 
+    // To control unit
     output logic signed [31:0] output_data,
     output logic output_data_valid,
-    
-    output logic [31:0] error
+    output logic coefficient_loading_complete
 );
 
 logic [$clog2(MAX_TAPS) - 1 : 0] input_wr_ptr;
 logic [$clog2(MAX_TAPS) - 1 : 0] coeff_wr_ptr;
 logic                            valid;
 
-
-assign error[0] = ~tap_count && compute;
-assign error[1] = ~tap_count;
-
-logic signed [15 : 0] coeff_data_array [MAX_TAPS - 1 : 0];
-logic signed [15 : 0] input_data_array [MAX_TAPS - 1 : 0];
+logic signed [31 : 0] coeff_data_array [MAX_TAPS - 1 : 0];
+logic signed [31 : 0] input_data_array [MAX_TAPS - 1 : 0];
 
 always_ff @(posedge clk) begin
     if (~rstn) begin
@@ -46,13 +42,14 @@ always_ff @(posedge clk) begin
         coeff_wr_ptr <= '{default: 0};
     end else if (coeff_data_valid) begin
         coeff_wr_ptr <= ((coeff_wr_ptr == tap_count - 1) || (coeff_wr_ptr == MAX_TAPS - 1)) ? coeff_wr_ptr : coeff_wr_ptr + 1;
+        coefficient_loading_complete <= ((coeff_wr_ptr == tap_count - 2) || (coeff_wr_ptr == MAX_TAPS - 2)) ? coeff_wr_ptr : coeff_wr_ptr + 1;
     end
 end
 
 always_ff @(posedge clk) begin
     if (~rstn) begin
         output_data_valid <= 0;
-        output_data       <= 16'sd0;
+        output_data       <= 32'sd0;
     end else if (compute & input_data_valid) begin
         integer i;
         integer read_index;
