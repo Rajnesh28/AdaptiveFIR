@@ -1,178 +1,143 @@
-module FIR_tb();
+module FIR_top_tb();
 
 
-    parameter int MAX_TAPS = 16;
+	parameter integer C_MAX_TAPS			= 16;
+	parameter integer C_S00_AXI_DATA_WIDTH	= 32;
+	parameter integer C_S00_AXI_ADDR_WIDTH	= 32;
+	
+    logic  s00_axi_aclk;
+    logic  s00_axi_aresetn;
+    logic [C_S00_AXI_ADDR_WIDTH-1 : 0] s00_axi_awaddr;
+    logic [2 : 0] s00_axi_awprot;
+    logic  s00_axi_awvalid;
+    logic  s00_axi_awready;
+    logic [C_S00_AXI_DATA_WIDTH-1 : 0] s00_axi_wdata;
+    logic [(C_S00_AXI_DATA_WIDTH/8)-1 : 0] s00_axi_wstrb;
+    logic  s00_axi_wvalid;
+    logic  s00_axi_wready;
+    logic [1 : 0] s00_axi_bresp;
+    logic  s00_axi_bvalid;
+    logic  s00_axi_bready;
+    logic [C_S00_AXI_ADDR_WIDTH-1 : 0] s00_axi_araddr;
+    logic [2 : 0] s00_axi_arprot;
+    logic  s00_axi_arvalid;
+    logic  s00_axi_arready;
+    logic [C_S00_AXI_DATA_WIDTH-1 : 0] s00_axi_rdata;
+    logic [1 : 0] s00_axi_rresp;
+    logic  s00_axi_rvalid;
+    logic  s00_axi_rready;
     
-    // === Clock & Reset ===
-    logic clk;
-    logic rstn;
-
-    // === AXI Inputs (to toggle manually) ===
-    logic [31:0] control_axi;
-    logic [31:0] status_axi;
-    logic [31:0] tap_count_axi;
-    logic [31:0] coeff_axi;
-    logic [31:0] x_axi;
-    logic [31:0] y_axi;
-    logic        S_AXI_AWREADY;
-    logic        S_AXI_AWVALID;
-    logic [31:0] S_AXI_AWADDR;
-
-    // === Internal Control <-> Datapath signals ===
-    logic [31:0] tap_count;
-    logic                                 x_data_valid;
-    logic signed [31:0]                   x_data;
-    logic                                 coeff_data_valid;
-    logic signed [31:0]                   coeff_data;
-    logic                                 compute;
-    logic                                 coefficient_loading_complete;
-    logic                                 output_data_valid;
-    logic        [31:0]                   output_data;
-
-    // === Instantiate FIR Control Unit ===
-    FIR_control_unit #(
-        .MAX_TAPS(MAX_TAPS)
-    ) control_inst (
-        .clk(clk),
-        .rstn(rstn),
-
-        .control_axi(control_axi),
-        .status_axi(status_axi),
-        .tap_count_axi(tap_count_axi),
-        .coeff_axi(coeff_axi),
-        .x_axi(x_axi),
-        .y_axi(y_axi),
-
-        .S_AXI_AWREADY(S_AXI_AWREADY),
-        .S_AXI_AWVALID(S_AXI_AWVALID),
-        .S_AXI_AWADDR(S_AXI_AWADDR),
-
-        .tap_count(tap_count),
-        .x_data_valid(x_data_valid),
-        .x_data(x_data),
-        .coeff_data_valid(coeff_data_valid),
-        .coeff_data(coeff_data),
-        .compute(compute),
-
-        .coefficient_loading_complete(coefficient_loading_complete),
-        .output_data_valid(output_data_valid),
-        .output_data(output_data)
+    FIR_top # (
+        .C_MAX_TAPS(C_MAX_TAPS),
+        .C_S00_AXI_DATA_WIDTH(C_S00_AXI_DATA_WIDTH),
+        .C_S00_AXI_ADDR_WIDTH(C_S00_AXI_ADDR_WIDTH)
+    ) DUT (
+        .s00_axi_aclk(s00_axi_aclk),
+        .s00_axi_aresetn(s00_axi_aresetn),
+        .s00_axi_awaddr(s00_axi_awaddr),
+        .s00_axi_awprot(s00_axi_awprot),
+        .s00_axi_awvalid(s00_axi_awvalid),
+        .s00_axi_awready(s00_axi_awready),
+        .s00_axi_wdata(s00_axi_wdata),
+        .s00_axi_wstrb(s00_axi_wstrb),
+        .s00_axi_wvalid(s00_axi_wvalid),
+        .s00_axi_wready(s00_axi_wready),
+        .s00_axi_bresp(s00_axi_bresp),
+        .s00_axi_bvalid(s00_axi_bvalid),
+        .s00_axi_bready(s00_axi_bready),
+        .s00_axi_araddr(s00_axi_araddr),
+        .s00_axi_arprot(s00_axi_arprot),
+        .s00_axi_arvalid(s00_axi_arvalid),
+        .s00_axi_arready(s00_axi_arready),
+        .s00_axi_rdata(s00_axi_rdata),
+        .s00_axi_rresp(s00_axi_rresp),
+        .s00_axi_rvalid(s00_axi_rvalid),
+        .s00_axi_rready(s00_axi_rready)    
     );
-
-    // === Instantiate FIR Datapath ===
-    FIR_datapath #(
-        .MAX_TAPS(MAX_TAPS)
-    ) datapath_inst (
-        .clk(clk),
-        .rstn(rstn),
-
-        .tap_count(tap_count),
-        .input_data_valid(x_data_valid),
-        .input_data(x_data),
-        .coeff_data_valid(coeff_data_valid),
-        .coeff_data(coeff_data),
-        .compute(compute),
-
-        .output_data(output_data),
-        .output_data_valid(output_data_valid),
-        .coefficient_loading_complete(coefficient_loading_complete)
-    );
-
-    always #5 clk = ~clk;
-
-initial begin
-    clk  = 1;
-    rstn = 0;
-    control_axi = 0;
-    status_axi = 0;
-    tap_count_axi = 0;
-    coeff_axi = 0;
-    x_axi = 0;
-    y_axi = 0;
-    S_AXI_AWREADY = 0;
-    S_AXI_AWVALID = 0;
-    S_AXI_AWADDR = 0;
-
-    #10
-    rstn = 1;
-
-    // === TAP COUNT WRITE (AWADDR == 0x08) ===
-    #10 begin
-        S_AXI_AWREADY = 1;
-        S_AXI_AWVALID = 1;
-        S_AXI_AWADDR  = 32'h08;
-    end
-
-    #10 begin
-        tap_count_axi = 8;
-        S_AXI_AWREADY = 0;
-        S_AXI_AWVALID = 0;
-        S_AXI_AWADDR  = 0;
-    end
-
-    // === CONTROL REGISTER WRITE (AWADDR == 0x00) ===
-    #10 begin
-        S_AXI_AWREADY = 1;
-        S_AXI_AWVALID = 1;
-        S_AXI_AWADDR  = 32'h00;
-    end
-
-    #10 begin
-        control_axi = 32'h2;
-        S_AXI_AWREADY = 0;
-        S_AXI_AWVALID = 0;
-        S_AXI_AWADDR  = 0;
-    end
-
-    // === COEFFICIENTS WRITE (AWADDR == 0x0C) ===
-    #10 begin
-        S_AXI_AWREADY = 1;
-        S_AXI_AWVALID = 1;
-        S_AXI_AWADDR  = 32'h0C;
-    end
-
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
-    #10 coeff_axi = $urandom_range(0, 25);
     
-    #10 begin
-        S_AXI_AWREADY = 0;
-        S_AXI_AWVALID = 0;
-        S_AXI_AWADDR  = 32'h00;
-    end
+    always #5 s00_axi_aclk = ~s00_axi_aclk;
     
+    initial begin
+        s00_axi_aclk = 1; 
+        s00_axi_aresetn = 0;
+        s00_axi_awaddr  = 32'h0;
+        s00_axi_awprot  = 3'b0;
+        s00_axi_awvalid = 0;
+        s00_axi_wdata   = 32'h0;
+        s00_axi_wstrb   = 4'b0;
+        s00_axi_wvalid  = 0;
+        s00_axi_bready  = 0;
+        s00_axi_araddr  = 32'h0;
+        s00_axi_arprot  = 3'b0;
+        s00_axi_arvalid = 0;
+        s00_axi_rready  = 0;
     
-    // === Enable Compute (AWADDR == 0x10) ===
-    #10 begin
-        control_axi = 32'h1;
-        S_AXI_AWREADY = 1;
-        S_AXI_AWVALID = 1;
-        S_AXI_AWADDR  = 32'h00;
-    end
-    
-    // === INPUTS WRITE (AWADDR == 0x10) ===
-    #10 begin
-        S_AXI_AWREADY = 1;
-        S_AXI_AWVALID = 1;
-        S_AXI_AWADDR  = 32'h10;
-     end
-            
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
-    #10 x_axi = $urandom_range(0, 25);
+        #20
+        
+        s00_axi_aresetn = 1; 
 
-            
+        #20
+        
+        // SET THE TAP COUNT
+        AXI_WRITE_DATA(32'h0000_0008, 32'h0000_0008);
+        
+        // SET THE COEFFICIENT LOAD ENABLE BIT IN THE CONTROL REGISTER
+        AXI_WRITE_DATA(32'h0000_0000, 32'h0000_0002);
+        
+       // SEND COEFFICIENT DATA 
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_000C, $urandom_range(0, 25));
+
+        // SET THE COMPUTE BIT IN THE CONTROL REGISTER
+        AXI_WRITE_DATA(32'h0000_0000, 32'h0000_0001);
+        
+        // SEND INPUT DATA
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+        AXI_WRITE_DATA(32'h0000_0010, $urandom_range(0, 25));
+
+    
     $finish;
-end
+    end
+    
+    task automatic AXI_WRITE_DATA;
+    input [31:0] address;
+    input [31:0] data;
+    begin
+        
+        s00_axi_awaddr  = address;
+        s00_axi_awvalid = 1;
+        s00_axi_wvalid  = 1;
+        s00_axi_wdata   = data;
+        s00_axi_wstrb   = 4'b1111;
+    
+        wait (s00_axi_awready && s00_axi_wready);
+        
+        @(posedge s00_axi_aclk) #1;
+        
+        wait(s00_axi_bvalid);
+        s00_axi_bready = 1;
+        
+        @(posedge s00_axi_aclk) #1;
+        
+        s00_axi_awvalid = 0;
+        s00_axi_wvalid  = 0;
+        s00_axi_wstrb   = 4'b0000;
+        
+    end
+    endtask
+        
+      
 endmodule
