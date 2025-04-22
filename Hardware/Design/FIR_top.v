@@ -1,10 +1,8 @@
-import fir_pkg::*;
-
 module FIR_top #
 (
-	parameter integer C_MAX_TAPS			= MAX_TAPS,
-	parameter integer C_S00_AXI_DATA_WIDTH	= AXI_DATA_WIDTH,
-	parameter integer C_S00_AXI_ADDR_WIDTH	= AXI_ADDR_WIDTH
+	parameter integer C_MAX_TAPS			= 16,
+	parameter integer C_S00_AXI_DATA_WIDTH	= 32,
+	parameter integer C_S00_AXI_ADDR_WIDTH	= 32
 )
 (
 	input wire  s00_axi_aclk,
@@ -30,13 +28,26 @@ module FIR_top #
 	input wire  s00_axi_rready
 );
     
+   // Between FIR AXI and Control Unit
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] control_axi;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] tap_count_axi;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] coeff_axi;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] x_axi;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] status_axi;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] y_axi;
+
+   // Between FIR Control Unit and Datapath
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] tap_count;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] coeff_data;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] x_data;
+   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] output_data;
+
+   wire x_data_valid;
+   wire coeff_data_valid;
+   wire compute;
+   wire output_data_valid;
+   wire coefficient_loading_complete;
    
-    wire [C_S00_AXI_DATA_WIDTH-1:0] control_axi;
-    wire [C_S00_AXI_DATA_WIDTH-1:0] status_axi;
-    wire [C_S00_AXI_DATA_WIDTH-1:0] tap_count_axi;
-    wire [C_S00_AXI_DATA_WIDTH-1:0] coeff_axi;
-
-
 // Instantiation of Axi-Lite Slave Bus Interface
 FIR_axi # ( 
 	.C_S_AXI_DATA_WIDTH(C_S00_AXI_DATA_WIDTH),
@@ -63,30 +74,37 @@ FIR_axi # (
 	.S_AXI_RRESP(s00_axi_rresp),
 	.S_AXI_RVALID(s00_axi_rvalid),
 	.S_AXI_RREADY(s00_axi_rready),
-	
-	.status_axi(status_axi),
-	.control_axi(control_axi),
-	.tap_count_axi(tap_count_axi),
-	.coeff_axi(coeff_axi)
+    .control_axi(control_axi),
+    .tap_count_axi(tap_count_axi),
+    .coeff_axi(coeff_axi),
+    .x_axi(x_axi),
+    .status_axi(status_axi),
+    .y_axi(y_axi)
+
 );
 
 // Instantiation of Finite Impulse Response Control Unit
 FIR_control_unit FIR_control_unit_inst (
-    .clk(s00_axi_aclk),
-    .rstn(s00_axi_aresetn),
-    .S_AXI_AWREADY(s00_axi_awready),
-    .S_AXI_AWVALID(s00_axi_awvalid),
-    .S_AXI_AWADDR(s00_axi_awaddr),
-    
-	.status_axi(status_axi),
-	.control_axi(control_axi),
-	.tap_count_axi(tap_count_axi),
-	.coeff_axi(coeff_axi),
-	
-	.coeff_data_valid(coeff_data_valid),
-	.coeff_data(coeff_data),
-	.tap_count_o(tap_count)
-	
+   .clk(s00_axi_aclk),
+   .rstn(s00_axi_aresetn),
+   .control_axi(control_axi),
+   .tap_count_axi(tap_count_axi),
+   .coeff_axi(coeff_axi),
+   .x_axi(x_axi),
+   .status_axi(status_axi),
+   .y_axi(y_axi),
+   .S_AXI_AWREADY(s00_axi_awready),
+   .S_AXI_AWVALID(s00_axi_awvalid),
+   .S_AXI_AWADDR(s00_axi_awaddr),
+   .tap_count(tap_count),
+   .x_data(x_data),
+   .x_data_valid(x_data_valid),
+   .coeff_data_valid(coeff_data_valid),
+   .coeff_data(coeff_data),
+   .compute(compute),
+   .coefficient_loading_complete(coefficient_loading_complete),
+   .output_data_valid(output_data_valid),
+   .output_data(output_data) 
 );
 
 // Instantiation of Finite Impulse Response Datapath
@@ -94,15 +112,15 @@ FIR_datapath #(.MAX_TAPS(C_MAX_TAPS))
     FIR_datapath_inst (
     .clk(s00_axi_aclk),
     .rstn(s00_axi_aresetn),
-    .tap_count(tap_count_o),
-    .input_data_valid(0), 
-    .input_data(0), 
+    .tap_count(tap_count),
+    .input_data_valid(x_data_valid),
+    .input_data(x_data),
     .coeff_data_valid(coeff_data_valid),
     .coeff_data(coeff_data),
-    .compute(1'b0),
-    .output_data(), 
-    .output_data_valid(), 
-    .error()
+    .compute(compute),
+    .output_data(output_data),
+    .output_data_valid(output_data_valid),
+    .coefficient_loading_complete(coefficient_loading_complete) 
 );
 
 
