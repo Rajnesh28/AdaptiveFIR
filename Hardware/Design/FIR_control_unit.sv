@@ -69,9 +69,9 @@ module FIR_control_unit #(
             coefficient_write_valid <= 1'b0;
             input_write_valid       <= 1'b0;
         end else begin
-            tap_count_write_valid   = ((S_AXI_AWVALID & S_AXI_AWREADY) && (S_AXI_AWADDR == 32'h08));
-            coefficient_write_valid = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h0C));
-            input_write_valid       = (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h10));
+            tap_count_write_valid   <= ((S_AXI_AWVALID & S_AXI_AWREADY) && (S_AXI_AWADDR == 32'h08));
+            coefficient_write_valid <= (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h0C));
+            input_write_valid       <= (S_AXI_AWVALID && S_AXI_AWREADY && (S_AXI_AWADDR == 32'h10));
         end
    end
     
