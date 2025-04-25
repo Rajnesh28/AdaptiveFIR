@@ -68,7 +68,7 @@ always_ff @(posedge clk) begin
         output_data       <= acc;
         output_data_valid <= valid;
     end else begin
-        output_data       <= 0;
+        output_data       <= output_data;
         output_data_valid <= 0;
     end
 end

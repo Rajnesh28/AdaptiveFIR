@@ -2,7 +2,7 @@ module FIR_top #
 (
 	parameter integer C_MAX_TAPS			= 16,
 	parameter integer C_S00_AXI_DATA_WIDTH	= 32,
-	parameter integer C_S00_AXI_ADDR_WIDTH	= 32
+	parameter integer C_S00_AXI_ADDR_WIDTH	= 5
 )
 (
 	input wire  s00_axi_aclk,
@@ -29,18 +29,18 @@ module FIR_top #
 );
     
    // Between FIR AXI and Control Unit
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] control_axi;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] tap_count_axi;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] coeff_axi;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] x_axi;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] status_axi;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] y_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] control_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] tap_count_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] coeff_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] x_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] status_axi;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] y_axi;
 
    // Between FIR Control Unit and Datapath
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] tap_count;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] coeff_data;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] x_data;
-   wire [C_S00_AXI_ADDR_WIDTH-1 : 0] output_data;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] tap_count;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] coeff_data;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] x_data;
+   wire [C_S00_AXI_DATA_WIDTH-1 : 0] output_data;
 
    wire x_data_valid;
    wire coeff_data_valid;
