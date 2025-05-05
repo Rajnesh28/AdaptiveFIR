@@ -1,5 +1,6 @@
 module FIR_datapath #(
-    parameter integer MAX_TAPS = 16
+    parameter integer MAX_TAPS = 16,
+    parameter integer LATENCY = 1 // 1 implies fully parallel
 ) (
     input logic clk,
     input logic rstn,
@@ -18,10 +19,14 @@ module FIR_datapath #(
     output logic coefficient_loading_complete
 );
 
+localparam integer PARALLEL_UNITS = $ceil((MAX_TAPS + LATENCY - 1)/LATENCY);
+
 logic [$clog2(MAX_TAPS) - 1 : 0] input_wr_ptr;
 logic [$clog2(MAX_TAPS) - 1 : 0] coeff_wr_ptr;
 logic                            valid;
-
+logic                            compute_active;
+logic        [31 : 0 ]           cycle_count;
+         
 logic signed [31 : 0] coeff_data_array [MAX_TAPS - 1 : 0];
 logic signed [31 : 0] input_data_array [MAX_TAPS - 1 : 0];
 
@@ -45,34 +50,88 @@ always_ff @(posedge clk) begin
     end
 end
 
-always_ff @(posedge clk) begin
-    if (~rstn) begin
-        output_data_valid <= 0;
-        output_data       <= 32'sd0;
-    end else if (compute & input_data_valid) begin
-        integer i;
-        integer read_index;
-        logic signed [31:0] acc;
-        acc = 0;
+logic signed [31 : 0] acc_intermediate;
 
-        for (i = 0; i < MAX_TAPS; i = i + 1) begin
-            if (i < tap_count) begin
-                read_index = input_wr_ptr - i - 1;
-                if (read_index < 0) begin
-                    read_index = read_index + tap_count;
+generate 
+
+    if (LATENCY == 1) begin : parallel
+        always_ff @(posedge clk) begin
+            if (~rstn) begin
+                output_data_valid <= 0;
+                output_data       <= 32'sd0;
+            end else if (compute & input_data_valid) begin
+                integer i;
+                integer read_index;
+                logic signed [31:0] acc;
+                acc = 0;
+        
+                for (i = 0; i < MAX_TAPS; i = i + 1) begin
+                    if (i < tap_count) begin
+                        read_index = input_wr_ptr - i - 1;
+                        if (read_index < 0) begin
+                            read_index = read_index + tap_count;
+                        end
+                        acc += coeff_data_array[i] * input_data_array[read_index];
+                    end
                 end
-                acc += coeff_data_array[i] * input_data_array[read_index];
+        
+                output_data       <= acc;
+                output_data_valid <= valid;
+            end else begin
+                output_data       <= output_data;
+                output_data_valid <= 0;
             end
         end
-
-        output_data       <= acc;
-        output_data_valid <= valid;
-    end else begin
-        output_data       <= output_data;
-        output_data_valid <= 0;
     end
-end
-
+         
+    else begin : parallel_pipeline_hybrid
+    
+        always_ff @(posedge clk) begin
+            logic signed [31 : 0] acc;
+           
+            if (~rstn) begin
+                output_data_valid <= 0;
+                output_data       <= 32'sd0;
+                compute_active    <= 1'b0;
+                cycle_count       <= 1'b0;
+                acc_intermediate  <= 0;
+                
+            end else if (compute && input_data_valid && ~compute_active) begin
+                compute_active    <= 1'b1;
+                cycle_count       <= 0;
+                acc_intermediate  <= 0;
+            end else if (compute_active) begin
+                integer i;
+                acc    = 0;
+                for (i = 0; i < PARALLEL_UNITS; i = i + 1) begin
+                    integer tap_index = cycle_count * PARALLEL_UNITS + i;
+                    if (tap_index < tap_count) begin
+                        integer read_index = input_wr_ptr - tap_index - 1;
+                        if (read_index < 0) read_index = read_index + tap_count;
+        
+                        acc += coeff_data_array[tap_index] * input_data_array[read_index];
+                    end
+                end
+                acc_intermediate <= acc + acc_intermediate;
+                        
+                cycle_count <= cycle_count + 1;
+                
+                if (cycle_count == LATENCY - 1) begin
+                    output_data         <= acc_intermediate;
+                    output_data_valid   <= 1;
+                    compute_active      <= 0;
+                end else begin
+                    cycle_count       <= cycle_count + 1;
+                    output_data_valid <= 0;
+                end
+            end else begin
+                output_data_valid <= 0;
+            end
+        end
+    end
+    
+endgenerate
+    
 FIR_memory #(.MAX_TAPS(MAX_TAPS)) input_buffer (
     .clk(clk),
     .rstn(rstn),
