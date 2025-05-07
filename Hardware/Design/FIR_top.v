@@ -2,7 +2,8 @@ module FIR_top #
 (
 	parameter integer C_MAX_TAPS			= 16,
 	parameter integer C_S00_AXI_DATA_WIDTH	= 32,
-	parameter integer C_S00_AXI_ADDR_WIDTH	= 5
+	parameter integer C_S00_AXI_ADDR_WIDTH	= 5, 
+    parameter integer C_LATENCY             = 1
 )
 (
 	input wire  s00_axi_aclk,
@@ -108,7 +109,7 @@ FIR_control_unit FIR_control_unit_inst (
 );
 
 // Instantiation of Finite Impulse Response Datapath
-FIR_datapath #(.MAX_TAPS(C_MAX_TAPS)) 
+FIR_datapath #(.MAX_TAPS(C_MAX_TAPS), .LATENCY(C_LATENCY)) 
     FIR_datapath_inst (
     .clk(s00_axi_aclk),
     .rstn(s00_axi_aresetn),
