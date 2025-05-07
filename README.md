@@ -14,7 +14,7 @@ This repository provides:
 
 - Preliminary (unfinished) drivers for integrating streaming ADC data on the ADS1115 (aka, one I happen to own)
 
-## ✨ Key Features
+## Key Features
 
 - **Runtime Configurable Coefficients:** Load different filter taps at runtime, enabling adaptive or application-specific filtering without needing to reprogram the FPGA.
 
